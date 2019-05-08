@@ -2,6 +2,8 @@
    is not here because jsoo doesn't support embedding raw JS.
    It can be found in the react.js file. */
 
+open Js_of_ocaml;
+
 class type factory = {
   pub factory:
     ('compConstructor, 'isValidElement, 'noopUpdateQueue) =>

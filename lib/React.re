@@ -1,5 +1,7 @@
 type jsProps;
 
+open Js_of_ocaml;
+
 type reactElement;
 
 type reactRef;
