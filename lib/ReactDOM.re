@@ -1,4 +1,5 @@
 type props;
+open Js_of_ocaml;
 
 class type reactDOM = {
   pub render: (React.reactElement, Js.t(Dom_html.element)) => Js.meth(unit);

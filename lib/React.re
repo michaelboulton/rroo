@@ -12,10 +12,18 @@ let string: string => reactElement = s => Obj.magic(Js.string(s));
 
 class type react = {
   pub createElement:
-    (ReactClass.t, Js.Opt.t(Js.t({..})), Js.t(Js.js_array(reactElement))) =>
+    (
+      ReactClass.t,
+      Js.Opt.t(Js.t({..})),
+      Js.t(Js.js_array(reactElement))
+    ) =>
     Js.meth(reactElement);
   pub cloneElement:
-    (reactElement, Js.Opt.t(Js.t({..})), Js.t(Js.js_array(reactElement))) =>
+    (
+      reactElement,
+      Js.Opt.t(Js.t({..})),
+      Js.t(Js.js_array(reactElement))
+    ) =>
     Js.meth(reactElement);
 };
 
@@ -29,12 +37,20 @@ external refToJsObj: reactRef => Js.t({..}) = "%identity";
 let createElement:
   (ReactClass.t, ~props: Js.t({..})=?, array(reactElement)) => reactElement =
   (reactClass, ~props=?, children) =>
-    react##createElement(reactClass, Js.Opt.option(props), Js.array(children));
+    react##createElement(
+      reactClass,
+      Js.Opt.option(props),
+      Js.array(children),
+    );
 
 let cloneElement:
   (reactElement, ~props: Js.t({..})=?, array(reactElement)) => reactElement =
   (reactElement, ~props=?, children) =>
-    react##cloneElement(reactElement, Js.Opt.option(props), Js.array(children));
+    react##cloneElement(
+      reactElement,
+      Js.Opt.option(props),
+      Js.array(children),
+    );
 
 /* let createElementVerbatim: 'a = react##createElement; */
 
@@ -187,323 +203,54 @@ let convertPropsIfTheyreFromJs = (props, jsPropsToReason, debugName) => {
   };
 };
 
-let _createClass = ReactOptimizedCreateClass.createClass();
-let createClass =
-    (type reasonState, type retainedProps, type action, debugName): ReactClass.t =>
-  _createClass(
-    [%js
-      {
-        /***
-         * TODO: Null out fields that aren't overridden beyond defaults in
-         * `component`. React optimizes components that don't implement
-         * lifecycles!
-         */
-        val displayName = debugName;
-        val mutable subscriptions = Js.null;
-        /***
-         * TODO: Avoid allocating this every time we need it. Should be doable.
-         */
-        pub selfRef = (state, retainedProps) => {
-          handle: Obj.magic(Js.Unsafe.js_expr("this.handleMethod")),
-          send: Obj.magic(Js.Unsafe.js_expr("this.sendMethod")),
-          state,
-          retainedPropsSelf: retainedProps,
-          onUnmount: Obj.magic(Js.Unsafe.js_expr("this.onUnmountMethod")),
-        };
-        pub getInitialState = (): totalState('state, 'retainedProps, 'action) => {
-          let thisJs:
-            jsComponentThis(reasonState, element, retainedProps, action) =
-            Js.Unsafe.js_expr("this");
-          let convertedReasonProps =
-            convertPropsIfTheyreFromJs(
-              thisJs##.props,
-              thisJs##.jsPropsToReason,
-              debugName,
-            );
-          let Element(component) = convertedReasonProps;
-          let initialReasonState = component.initialState();
-          %js
-          {val reasonState = Obj.magic(initialReasonState)};
-        };
-        pub componentDidMount = () => {
-          let thisJs:
-            jsComponentThis(reasonState, element, retainedProps, action) =
-            Js.Unsafe.js_expr("this");
-          let convertedReasonProps =
-            convertPropsIfTheyreFromJs(
-              thisJs##.props,
-              thisJs##.jsPropsToReason,
-              debugName,
-            );
-          let Element(component) = convertedReasonProps;
-          let curTotalState = thisJs##.state;
-          let curReasonState = curTotalState##.reasonState;
-          let self =
-            this##selfRef(
-              curReasonState,
-              Obj.magic(component.retainedProps),
-            );
-          let self = Obj.magic(self);
-          if (component.didMount !== anyToUnit) {
-            component.didMount(self);
-          };
-        };
-        pub componentDidUpdate = (prevProps, prevState) => {
-          let thisJs:
-            jsComponentThis(reasonState, element, retainedProps, action) =
-            Js.Unsafe.js_expr("this");
-          let curState = thisJs##.state;
-          let curReasonState = curState##.reasonState;
-          let newJsProps = thisJs##.props;
-          let newConvertedReasonProps =
-            convertPropsIfTheyreFromJs(
-              newJsProps,
-              thisJs##.jsPropsToReason,
-              debugName,
-            );
-          let Element(newComponent) = newConvertedReasonProps;
-          if (newComponent.didUpdate !== anyToUnit) {
-            let oldConvertedReasonProps =
-              prevProps === newJsProps ?
-                newConvertedReasonProps :
-                convertPropsIfTheyreFromJs(
-                  prevProps,
-                  thisJs##.jsPropsToReason,
-                  debugName,
-                );
-            let Element(oldComponent) = oldConvertedReasonProps;
-            let prevReasonState = prevState##reasonState;
-            let prevReasonState = Obj.magic(prevReasonState);
-            let newSelf =
-              this##selfRef(
-                curReasonState,
-                Obj.magic(newComponent.retainedProps),
-              );
-            let newSelf = Obj.magic(newSelf);
-            /* bypass this##selfRef call for small perf boost */
-            let oldSelf =
-              Obj.magic({
-                ...newSelf,
-                state: prevReasonState,
-                retainedPropsSelf: oldComponent.retainedProps,
-              });
-            newComponent.didUpdate({oldSelf, newSelf});
-          };
-        };
-        /* pub componentWillMount .. TODO (or not?) */
-        pub componentWillUnmount = () => {
-          let thisJs:
-            jsComponentThis(reasonState, element, retainedProps, action) =
-            Js.Unsafe.js_expr("this");
-          let convertedReasonProps =
-            convertPropsIfTheyreFromJs(
-              thisJs##.props,
-              thisJs##.jsPropsToReason,
-              debugName,
-            );
-          let Element(component) = convertedReasonProps;
-          let curState = thisJs##.state;
-          let curReasonState = curState##.reasonState;
-          if (component.willUnmount !== anyToUnit) {
-            let self =
-              this##selfRef(
-                curReasonState,
-                Obj.magic(component.retainedProps),
-              );
-            let self = Obj.magic(self);
-            component.willUnmount(self);
-          };
-          switch (Js.Opt.to_option(this##.subscriptions)) {
-          | None => ()
-          | Some(subs) =>
-            subs##forEach(
-              Js.wrap_callback((unsubscribe, _index, _array) =>
-                unsubscribe()
-              ),
-            )
-          };
-        };
-        /***
-         * If we are even getting this far, we've already done all the logic for
-         * detecting unnecessary updates in shouldComponentUpdate. We know at
-         * this point that we need to rerender, and we've even *precomputed* the
-         * render result (subelements)!
-         */
-        pub componentWillUpdate = (nextProps, nextState: totalState(_)) => {
-          let thisJs:
-            jsComponentThis(reasonState, element, retainedProps, action) =
-            Js.Unsafe.js_expr("this");
-          let newConvertedReasonProps =
-            convertPropsIfTheyreFromJs(
-              nextProps,
-              thisJs##.jsPropsToReason,
-              debugName,
-            );
-          let Element(newComponent) = newConvertedReasonProps;
-          if (newComponent.willUpdate !== anyToUnit) {
-            let oldJsProps = thisJs##.props;
-            /* Avoid converting again the props that are just the same as curProps. */
-            let oldConvertedReasonProps =
-              nextProps === oldJsProps ?
-                newConvertedReasonProps :
-                convertPropsIfTheyreFromJs(
-                  oldJsProps,
-                  thisJs##.jsPropsToReason,
-                  debugName,
-                );
-            let Element(oldComponent) = oldConvertedReasonProps;
-            let curState = thisJs##.state;
-            let curReasonState = curState##.reasonState;
-            let curReasonState = Obj.magic(curReasonState);
-            let nextReasonState = nextState##.reasonState;
-            let newSelf =
-              this##selfRef(
-                nextReasonState,
-                Obj.magic(newComponent.retainedProps),
-              );
-            let newSelf = Obj.magic(newSelf);
-            /* bypass this##selfRef call for small perf boost */
-            let oldSelf =
-              Obj.magic({
-                ...newSelf,
-                state: curReasonState,
-                retainedPropsSelf: oldComponent.retainedProps,
-              });
-            newComponent.willUpdate({oldSelf, newSelf});
-          };
-        };
-        /***
-         * One interesting part of the new Reason React API. There isn't a need
-         * for a separate `willReceiveProps` function. The primary `create` API
-         * is *always* receiving props.
-         */
-        pub componentWillReceiveProps = nextProps => {
-          let thisJs:
-            jsComponentThis(reasonState, element, retainedProps, action) =
-            Js.Unsafe.js_expr("this");
-          let newConvertedReasonProps =
-            convertPropsIfTheyreFromJs(
-              nextProps,
-              thisJs##.jsPropsToReason,
-              debugName,
-            );
-          let Element(newComponent) = Obj.magic(newConvertedReasonProps);
-          if (newComponent.willReceiveProps !== willReceivePropsDefault) {
-            let oldJsProps = thisJs##.props;
-            /* Avoid converting again the props that are just the same as curProps. */
-            let oldConvertedReasonProps =
-              nextProps === oldJsProps ?
-                newConvertedReasonProps :
-                convertPropsIfTheyreFromJs(
-                  oldJsProps,
-                  thisJs##.jsPropsToReason,
-                  debugName,
-                );
-            let Element(oldComponent) = oldConvertedReasonProps;
-            thisJs##setState(
-              (curTotalState, _) => {
-                let curReasonState = Obj.magic(curTotalState##.reasonState);
-                let oldSelf =
-                  Obj.magic(
-                    this##selfRef(
-                      curReasonState,
-                      Obj.magic(oldComponent.retainedProps),
-                    ),
-                  );
-                let nextReasonState =
-                  Obj.magic(newComponent.willReceiveProps(oldSelf));
-                if (nextReasonState !== curTotalState) {
-                  let nextTotalState: totalState(_) = [%js
-                    {val reasonState = nextReasonState}
-                  ];
-                  let nextTotalState = Obj.magic(nextTotalState);
-                  nextTotalState;
-                } else {
-                  curTotalState;
-                };
-              },
-              Js.null,
-            );
-          };
-        };
-        /***
-         * shouldComponentUpdate is invoked any time props change, or new state
-         * updates occur.
-         *
-         * The easiest way to think about this method, is:
-         * - "Should component have its componentWillUpdate method called,
-         * followed by its render() method?",
-         *
-         * Therefore the component.shouldUpdate becomes a hook solely to perform
-         * performance optimizations through.
-         */
-        pub shouldComponentUpdate = (nextJsProps, nextState, _) => {
-          let thisJs:
-            jsComponentThis(reasonState, element, retainedProps, action) =
-            Js.Unsafe.js_expr("this");
-          let curJsProps = thisJs##.props;
+type reasonState_;
+type retainedProps_;
+type action_;
 
+type reasonState_t =
+  | ReasonState(reasonState_): reasonState_t;
+
+type retainedProps_t =
+  | RetainedProps(retainedProps_): retainedProps_t;
+
+type action_t =
+  | Action(action_): action_t;
+
+let _createClass = ReactOptimizedCreateClass.createClass();
+// let createClass =
+//     (type reasonState, type retainedProps, type action, debugName): ReactClass.t =>
+let createClass: string => ReactClass.t =
+  debugName =>
+    _createClass(
+      [%js
+        {
           /***
-           * Now, we inspect the next state that we are supposed to render, and ensure that
-           * - We have enough information to answer "should update?"
-           * - We have enough information to render() in the event that the answer is "true".
-           *
-           * If we can detect that props have changed update has occured,
-           * we ask the component's shouldUpdate if it would like to update - defaulting to true.
+           * TODO: Null out fields that aren't overridden beyond defaults in
+           * `component`. React optimizes components that don't implement
+           * lifecycles!
            */
-          let oldConvertedReasonProps =
-            convertPropsIfTheyreFromJs(
-              thisJs##.props,
-              thisJs##.jsPropsToReason,
-              debugName,
-            );
-          /* Avoid converting again the props that are just the same as curProps. */
-          let newConvertedReasonProps =
-            nextJsProps === curJsProps ?
-              oldConvertedReasonProps :
-              convertPropsIfTheyreFromJs(
-                nextJsProps,
-                thisJs##.jsPropsToReason,
-                debugName,
-              );
-          let Element(oldComponent) = oldConvertedReasonProps;
-          let Element(newComponent) = newConvertedReasonProps;
-          let nextReasonState = nextState##.reasonState;
-          let newSelf =
-            this##selfRef(
-              nextReasonState,
-              Obj.magic(newComponent.retainedProps),
-            );
-          if (newComponent.shouldUpdate !== anyToTrue) {
-            let curState = thisJs##.state;
-            let curReasonState = curState##.reasonState;
-            let curReasonState = Obj.magic(curReasonState);
-            let newSelf = Obj.magic(newSelf);
-            /* bypass this##selfRef call for small perf boost */
-            let oldSelf =
-              Obj.magic({
-                ...newSelf,
-                state: curReasonState,
-                retainedPropsSelf: oldComponent.retainedProps,
-              });
-            newComponent.shouldUpdate({oldSelf, newSelf});
-          } else {
-            true;
+          val displayName = debugName;
+          val mutable subscriptions = Js.null;
+          /***
+           * TODO: Avoid allocating this every time we need it. Should be doable.
+           */
+          pub selfRef = (state, retainedProps) => {
+            handle: Obj.magic(Js.Unsafe.js_expr("this.handleMethod")),
+            send: Obj.magic(Js.Unsafe.js_expr("this.sendMethod")),
+            state,
+            retainedPropsSelf: retainedProps,
+            onUnmount: Obj.magic(Js.Unsafe.js_expr("this.onUnmountMethod")),
           };
-        };
-        pub onUnmountMethod = subscription =>
-          switch (Js.Opt.to_option(this##.subscriptions)) {
-          | None =>
-            this##.subscriptions := Js.Opt.return(Js.array([|subscription|]))
-          | Some(subs) => ignore(subs##push(subscription))
-          };
-        pub handleMethod = callback => {
-          let thisJs:
-            jsComponentThis(reasonState, element, retainedProps, action) =
-            Js.Unsafe.js_expr("this");
-          callbackPayload => {
-            let curState = thisJs##.state;
-            let curReasonState = curState##.reasonState;
+          pub getInitialState =
+              (): totalState('state, 'retainedProps, 'action) => {
+            let thisJs:
+              jsComponentThis(
+                reasonState_t,
+                element,
+                retainedProps_t,
+                action_t,
+              ) =
+              Js.Unsafe.js_expr("this");
             let convertedReasonProps =
               convertPropsIfTheyreFromJs(
                 thisJs##.props,
@@ -511,111 +258,447 @@ let createClass =
                 debugName,
               );
             let Element(component) = convertedReasonProps;
-            callback(
-              callbackPayload,
+            let initialReasonState = component.initialState();
+            %js
+            {val reasonState = Obj.magic(initialReasonState)};
+          };
+          pub componentDidMount = () => {
+            let thisJs:
+              jsComponentThis(
+                reasonState_t,
+                element,
+                retainedProps_t,
+                action_t,
+              ) =
+              Js.Unsafe.js_expr("this");
+            let convertedReasonProps =
+              convertPropsIfTheyreFromJs(
+                thisJs##.props,
+                thisJs##.jsPropsToReason,
+                debugName,
+              );
+            let Element(component) = convertedReasonProps;
+            let curTotalState = thisJs##.state;
+            let curReasonState = curTotalState##.reasonState;
+            let self =
+              this##selfRef(
+                curReasonState,
+                Obj.magic(component.retainedProps),
+              );
+            let self = Obj.magic(self);
+            if (component.didMount !== anyToUnit) {
+              component.didMount(self);
+            };
+          };
+          pub componentDidUpdate = (prevProps, prevState) => {
+            let thisJs:
+              jsComponentThis(
+                reasonState_t,
+                element,
+                retainedProps_t,
+                action_t,
+              ) =
+              Js.Unsafe.js_expr("this");
+            let curState = thisJs##.state;
+            let curReasonState = curState##.reasonState;
+            let newJsProps = thisJs##.props;
+            let newConvertedReasonProps =
+              convertPropsIfTheyreFromJs(
+                newJsProps,
+                thisJs##.jsPropsToReason,
+                debugName,
+              );
+            let Element(newComponent) = newConvertedReasonProps;
+            if (newComponent.didUpdate !== anyToUnit) {
+              let oldConvertedReasonProps =
+                prevProps === newJsProps
+                  ? newConvertedReasonProps
+                  : convertPropsIfTheyreFromJs(
+                      prevProps,
+                      thisJs##.jsPropsToReason,
+                      debugName,
+                    );
+              let Element(oldComponent) = oldConvertedReasonProps;
+              let prevReasonState = prevState##reasonState;
+              let prevReasonState = Obj.magic(prevReasonState);
+              let newSelf =
+                this##selfRef(
+                  curReasonState,
+                  Obj.magic(newComponent.retainedProps),
+                );
+              let newSelf = Obj.magic(newSelf);
+              /* bypass this##selfRef call for small perf boost */
+              let oldSelf =
+                Obj.magic({
+                  ...newSelf,
+                  state: prevReasonState,
+                  retainedPropsSelf: oldComponent.retainedProps,
+                });
+              newComponent.didUpdate({oldSelf, newSelf});
+            };
+          };
+          /* pub componentWillMount .. TODO (or not?) */
+          pub componentWillUnmount = () => {
+            let thisJs:
+              jsComponentThis(
+                reasonState_t,
+                element,
+                retainedProps_t,
+                action_t,
+              ) =
+              Js.Unsafe.js_expr("this");
+            let convertedReasonProps =
+              convertPropsIfTheyreFromJs(
+                thisJs##.props,
+                thisJs##.jsPropsToReason,
+                debugName,
+              );
+            let Element(component) = convertedReasonProps;
+            let curState = thisJs##.state;
+            let curReasonState = curState##.reasonState;
+            if (component.willUnmount !== anyToUnit) {
+              let self =
+                this##selfRef(
+                  curReasonState,
+                  Obj.magic(component.retainedProps),
+                );
+              let self = Obj.magic(self);
+              component.willUnmount(self);
+            };
+            switch (Js.Opt.to_option(this##.subscriptions)) {
+            | None => ()
+            | Some(subs) =>
+              subs##forEach(
+                Js.wrap_callback((unsubscribe, _index, _array) =>
+                  unsubscribe()
+                ),
+              )
+            };
+          };
+          /***
+           * If we are even getting this far, we've already done all the logic for
+           * detecting unnecessary updates in shouldComponentUpdate. We know at
+           * this point that we need to rerender, and we've even *precomputed* the
+           * render result (subelements)!
+           */
+          pub componentWillUpdate = (nextProps, nextState: totalState(_)) => {
+            let thisJs:
+              jsComponentThis(
+                reasonState_t,
+                element,
+                retainedProps_t,
+                action_t,
+              ) =
+              Js.Unsafe.js_expr("this");
+            let newConvertedReasonProps =
+              convertPropsIfTheyreFromJs(
+                nextProps,
+                thisJs##.jsPropsToReason,
+                debugName,
+              );
+            let Element(newComponent) = newConvertedReasonProps;
+            if (newComponent.willUpdate !== anyToUnit) {
+              let oldJsProps = thisJs##.props;
+              /* Avoid converting again the props that are just the same as curProps. */
+              let oldConvertedReasonProps =
+                nextProps === oldJsProps
+                  ? newConvertedReasonProps
+                  : convertPropsIfTheyreFromJs(
+                      oldJsProps,
+                      thisJs##.jsPropsToReason,
+                      debugName,
+                    );
+              let Element(oldComponent) = oldConvertedReasonProps;
+              let curState = thisJs##.state;
+              let curReasonState = curState##.reasonState;
+              let curReasonState = Obj.magic(curReasonState);
+              let nextReasonState = nextState##.reasonState;
+              let newSelf =
+                this##selfRef(
+                  nextReasonState,
+                  Obj.magic(newComponent.retainedProps),
+                );
+              let newSelf = Obj.magic(newSelf);
+              /* bypass this##selfRef call for small perf boost */
+              let oldSelf =
+                Obj.magic({
+                  ...newSelf,
+                  state: curReasonState,
+                  retainedPropsSelf: oldComponent.retainedProps,
+                });
+              newComponent.willUpdate({oldSelf, newSelf});
+            };
+          };
+          /***
+           * One interesting part of the new Reason React API. There isn't a need
+           * for a separate `willReceiveProps` function. The primary `create` API
+           * is *always* receiving props.
+           */
+          pub componentWillReceiveProps = nextProps => {
+            let thisJs:
+              jsComponentThis(
+                reasonState_t,
+                element,
+                retainedProps_t,
+                action_t,
+              ) =
+              Js.Unsafe.js_expr("this");
+            let newConvertedReasonProps =
+              convertPropsIfTheyreFromJs(
+                nextProps,
+                thisJs##.jsPropsToReason,
+                debugName,
+              );
+            let Element(newComponent) = Obj.magic(newConvertedReasonProps);
+            if (newComponent.willReceiveProps !== willReceivePropsDefault) {
+              let oldJsProps = thisJs##.props;
+              /* Avoid converting again the props that are just the same as curProps. */
+              let oldConvertedReasonProps =
+                nextProps === oldJsProps
+                  ? newConvertedReasonProps
+                  : convertPropsIfTheyreFromJs(
+                      oldJsProps,
+                      thisJs##.jsPropsToReason,
+                      debugName,
+                    );
+              let Element(oldComponent) = oldConvertedReasonProps;
+              thisJs##setState(
+                (curTotalState, _) => {
+                  let curReasonState = Obj.magic(curTotalState##.reasonState);
+                  let oldSelf =
+                    Obj.magic(
+                      this##selfRef(
+                        curReasonState,
+                        Obj.magic(oldComponent.retainedProps),
+                      ),
+                    );
+                  let nextReasonState =
+                    Obj.magic(newComponent.willReceiveProps(oldSelf));
+                  if (nextReasonState !== curTotalState) {
+                    let nextTotalState: totalState(_) = [%js
+                      {val reasonState = nextReasonState}
+                    ];
+                    let nextTotalState = Obj.magic(nextTotalState);
+                    nextTotalState;
+                  } else {
+                    curTotalState;
+                  };
+                },
+                Js.null,
+              );
+            };
+          };
+          /***
+           * shouldComponentUpdate is invoked any time props change, or new state
+           * updates occur.
+           *
+           * The easiest way to think about this method, is:
+           * - "Should component have its componentWillUpdate method called,
+           * followed by its render() method?",
+           *
+           * Therefore the component.shouldUpdate becomes a hook solely to perform
+           * performance optimizations through.
+           */
+          pub shouldComponentUpdate = (nextJsProps, nextState, _) => {
+            let thisJs:
+              jsComponentThis(
+                reasonState_t,
+                element,
+                retainedProps_t,
+                action_t,
+              ) =
+              Js.Unsafe.js_expr("this");
+            let curJsProps = thisJs##.props;
+
+            /***
+             * Now, we inspect the next state that we are supposed to render, and ensure that
+             * - We have enough information to answer "should update?"
+             * - We have enough information to render() in the event that the answer is "true".
+             *
+             * If we can detect that props have changed update has occured,
+             * we ask the component's shouldUpdate if it would like to update - defaulting to true.
+             */
+            let oldConvertedReasonProps =
+              convertPropsIfTheyreFromJs(
+                thisJs##.props,
+                thisJs##.jsPropsToReason,
+                debugName,
+              );
+            /* Avoid converting again the props that are just the same as curProps. */
+            let newConvertedReasonProps =
+              nextJsProps === curJsProps
+                ? oldConvertedReasonProps
+                : convertPropsIfTheyreFromJs(
+                    nextJsProps,
+                    thisJs##.jsPropsToReason,
+                    debugName,
+                  );
+            let Element(oldComponent) = oldConvertedReasonProps;
+            let Element(newComponent) = newConvertedReasonProps;
+            let nextReasonState = nextState##.reasonState;
+            let newSelf =
+              this##selfRef(
+                nextReasonState,
+                Obj.magic(newComponent.retainedProps),
+              );
+            if (newComponent.shouldUpdate !== anyToTrue) {
+              let curState = thisJs##.state;
+              let curReasonState = curState##.reasonState;
+              let curReasonState = Obj.magic(curReasonState);
+              let newSelf = Obj.magic(newSelf);
+              /* bypass this##selfRef call for small perf boost */
+              let oldSelf =
+                Obj.magic({
+                  ...newSelf,
+                  state: curReasonState,
+                  retainedPropsSelf: oldComponent.retainedProps,
+                });
+              newComponent.shouldUpdate({oldSelf, newSelf});
+            } else {
+              true;
+            };
+          };
+          pub onUnmountMethod = subscription =>
+            switch (Js.Opt.to_option(this##.subscriptions)) {
+            | None =>
+              this##.subscriptions :=
+                Js.Opt.return(Js.array([|subscription|]))
+            | Some(subs) => ignore(subs##push(subscription))
+            };
+          pub handleMethod = callback => {
+            let thisJs:
+              jsComponentThis(
+                reasonState_t,
+                element,
+                retainedProps_t,
+                action_t,
+              ) =
+              Js.Unsafe.js_expr("this");
+            callbackPayload => {
+              let curState = thisJs##.state;
+              let curReasonState = curState##.reasonState;
+              let convertedReasonProps =
+                convertPropsIfTheyreFromJs(
+                  thisJs##.props,
+                  thisJs##.jsPropsToReason,
+                  debugName,
+                );
+              let Element(component) = convertedReasonProps;
+              callback(
+                callbackPayload,
+                Obj.magic(
+                  this##selfRef(
+                    curReasonState,
+                    Obj.magic(component.retainedProps),
+                  ),
+                ),
+              );
+            };
+          };
+          pub sendMethod = (action: 'action) => {
+            let thisJs:
+              jsComponentThis(
+                reasonState_t,
+                element,
+                retainedProps_t,
+                action_t,
+              ) =
+              Js.Unsafe.js_expr("this");
+            let convertedReasonProps =
+              convertPropsIfTheyreFromJs(
+                thisJs##.props,
+                thisJs##.jsPropsToReason,
+                debugName,
+              );
+            let Element(component) = convertedReasonProps;
+            if (component.reducer !== reducerDefault) {
+              let sideEffects = ref(ignore);
+              /* allow side-effects to be executed here */
+              let partialStateApplication =
+                component.reducer(Obj.magic(action));
+              thisJs##setState(
+                (curTotalState, _) => {
+                  let curReasonState = curTotalState##.reasonState;
+                  let reasonStateUpdate =
+                    partialStateApplication(Obj.magic(curReasonState));
+                  if (reasonStateUpdate === NoUpdate) {
+                    magicNull;
+                  } else {
+                    let reasonStateUpdate = Obj.magic(reasonStateUpdate);
+                    let nextTotalState =
+                      switch (reasonStateUpdate) {
+                      | NoUpdate => curTotalState
+                      | Update(nextReasonState) =>
+                        %js
+                        {val reasonState = nextReasonState}
+                      | SideEffects(performSideEffects) =>
+                        sideEffects.contents = performSideEffects;
+                        curTotalState;
+                      | UpdateWithSideEffects(
+                          nextReasonState,
+                          performSideEffects,
+                        ) =>
+                        sideEffects.contents = performSideEffects;
+                        %js
+                        {val reasonState = nextReasonState};
+                      };
+                    if (nextTotalState !== curTotalState) {
+                      nextTotalState;
+                    } else {
+                      magicNull;
+                    };
+                  };
+                },
+                {
+                  let cb = ((), self) => sideEffects.contents(self);
+                  Js.Opt.return(
+                    Js.Unsafe.meth_call(
+                      this,
+                      "handleMethod",
+                      [|Js.Unsafe.inject(Js.wrap_callback(cb))|],
+                    ),
+                  );
+                },
+              );
+            };
+          };
+          /***
+           * In order to ensure we always operate on freshest props / state, and to
+           * support the API that "reduces" the next state along with the next
+           * rendering, with full acccess to named argument props in the closure,
+           * we always *pre* compute the render result.
+           */
+          pub render = () => {
+            let thisJs:
+              jsComponentThis(
+                reasonState_t,
+                element,
+                retainedProps_t,
+                action_t,
+              ) =
+              Js.Unsafe.js_expr("this");
+            let convertedReasonProps =
+              convertPropsIfTheyreFromJs(
+                thisJs##.props,
+                thisJs##.jsPropsToReason,
+                debugName,
+              );
+            let Element(created) = Obj.magic(convertedReasonProps);
+            let component = created;
+            let curState = thisJs##.state;
+            let curReasonState = Obj.magic(curState##.reasonState);
+            let self =
               Obj.magic(
                 this##selfRef(
                   curReasonState,
                   Obj.magic(component.retainedProps),
                 ),
-              ),
-            );
-          };
-        };
-        pub sendMethod = (action: 'action) => {
-          let thisJs:
-            jsComponentThis(reasonState, element, retainedProps, action) =
-            Js.Unsafe.js_expr("this");
-          let convertedReasonProps =
-            convertPropsIfTheyreFromJs(
-              thisJs##.props,
-              thisJs##.jsPropsToReason,
-              debugName,
-            );
-          let Element(component) = convertedReasonProps;
-          if (component.reducer !== reducerDefault) {
-            let sideEffects = ref(ignore);
-            /* allow side-effects to be executed here */
-            let partialStateApplication =
-              component.reducer(Obj.magic(action));
-            thisJs##setState(
-              (curTotalState, _) => {
-                let curReasonState = curTotalState##.reasonState;
-                let reasonStateUpdate =
-                  partialStateApplication(Obj.magic(curReasonState));
-                if (reasonStateUpdate === NoUpdate) {
-                  magicNull;
-                } else {
-                  let reasonStateUpdate = Obj.magic(reasonStateUpdate);
-                  let nextTotalState =
-                    switch (reasonStateUpdate) {
-                    | NoUpdate => curTotalState
-                    | Update(nextReasonState) =>
-                      %js
-                      {val reasonState = nextReasonState}
-                    | SideEffects(performSideEffects) =>
-                      sideEffects.contents = performSideEffects;
-                      curTotalState;
-                    | UpdateWithSideEffects(
-                        nextReasonState,
-                        performSideEffects,
-                      ) =>
-                      sideEffects.contents = performSideEffects;
-                      %js
-                      {val reasonState = nextReasonState};
-                    };
-                  if (nextTotalState !== curTotalState) {
-                    nextTotalState;
-                  } else {
-                    magicNull;
-                  };
-                };
-              },
-              {
-                let cb = ((), self) => sideEffects.contents(self);
-                Js.Opt.return(
-                  Js.Unsafe.meth_call(
-                    this,
-                    "handleMethod",
-                    [|Js.Unsafe.inject(Js.wrap_callback(cb))|],
-                  ),
-                );
-              },
-            );
-          };
-        };
-        /***
-         * In order to ensure we always operate on freshest props / state, and to
-         * support the API that "reduces" the next state along with the next
-         * rendering, with full acccess to named argument props in the closure,
-         * we always *pre* compute the render result.
-         */
-        pub render = () => {
-          let thisJs:
-            jsComponentThis(reasonState, element, retainedProps, action) =
-            Js.Unsafe.js_expr("this");
-          let convertedReasonProps =
-            convertPropsIfTheyreFromJs(
-              thisJs##.props,
-              thisJs##.jsPropsToReason,
-              debugName,
-            );
-          let Element(created) = Obj.magic(convertedReasonProps);
-          let component = created;
-          let curState = thisJs##.state;
-          let curReasonState = Obj.magic(curState##.reasonState);
-          let self =
-            Obj.magic(
-              this##selfRef(
-                curReasonState,
-                Obj.magic(component.retainedProps),
-              ),
-            );
-          component.render(self);
+              );
+            component.render(self);
+          }
         }
-      }
-    ],
-  );
+      ],
+    );
 
 let basicComponent = debugName => {
   let componentTemplate = {
